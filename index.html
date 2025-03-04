@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cálculo de Produção</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 70%;
+            max-width: 800px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .form-section {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            gap: 20px;
+        }
+        .form-column {
+            flex: 1;
+            min-width: 250px;
+        }
+        .info-peca-container {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        .info-peca {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            width: 100%;
+        }
+        .info-peca .form-group {
+            flex: 1;
+        }
+        .form-section-custo {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            gap: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin-top: 20px;
+            cursor: pointer;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .results {
+            margin-top: 20px;
+            display: flex;
+            width: 100%;
+            gap: 20px;
+        }
+        .result-column {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .result-column h3 {
+            margin-top: 0;
+        }
+        h2 {
+            text-align: center;
+            width: 100%;
+        }
+        .button-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+        .export-buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        .export-buttons button {
+            width: 150px;
+        }
+    </style>
+    <!-- Incluindo as bibliotecas jsPDF e xlsx -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Cálculo de Produção</h2>
+
+        <div class="info-peca-container">
+            <h3>Informações da Peça</h3>
+            <div class="info-peca">
+                <div class="form-group">
+                    <label for="codigoPeca">Código da Peça (opcional):</label>
+                    <input type="text" id="codigoPeca">
+                </div>
+                <div class="form-group">
+                    <label for="descricaoPeca">Descrição da Peça (opcional):</label>
+                    <input type="text" id="descricaoPeca">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section-custo">
+            <div class="form-column">
+                <h3>Custo da Peça Produzida</h3>
+                <div class="form-group">
+                    <label for="materiaPrima">Matéria-prima por peça (R$):</label>
+                    <input type="number" id="materiaPrima" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="maoDeObra">Custo da mão de obra por hora (R$):</label>
+                    <input type="number" id="maoDeObra" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="numProcessos">Número de processos:</label>
+                    <input type="number" id="numProcessos" min="1">
+                </div>
+                <div id="processos" class="form-group"></div>
+                <div class="form-group">
+                    <label for="quantidade">Quantidade a produzir:</label>
+                    <input type="number" id="quantidade" min="1">
+                </div>
+            </div>
+
+            <div class="form-column">
+                <h3>Custo da Peça Comprada</h3>
+                <div class="form-group">
+                    <label for="valorPecaComprada">Valor unitário da peça comprada (R$):</label>
+                    <input type="number" id="valorPecaComprada" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="ipi">IPI (%):</label>
+                    <input type="number" id="ipi" step="0.01">
+                </div>
+            </div>
+        </div>
+
+        <div class="button-container">
+            <button onclick="calcularCusto()">Calcular</button>
+        </div>
+
+        <div class="results">
+            <div class="result-column">
+                <h3>Resultado da Produção</h3>
+                <p id="resultado"></p>
+            </div>
+            <div class="result-column">
+                <h3>Resultado da Compra</h3>
+                <p id="resultadoCompra"></p>
+            </div>
+        </div>
+
+        <div class="export-buttons">
+            <button onclick="gerarPDF()">Exportar PDF</button>
+            <button onclick="gerarExcel()">Exportar Excel</button>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("numProcessos").addEventListener("change", function() {
+            let num = this.value;
+            let processosDiv = document.getElementById("processos");
+            processosDiv.innerHTML = "";
+            for (let i = 1; i <= num; i++) {
+                processosDiv.innerHTML += `
+                    <div class="form-group">
+                        <label for="tempoProcesso${i}">Tempo do processo ${i} (minutos):</label>
+                        <input type='number' id='tempoProcesso${i}' class='tempoProcesso' min='1'>
+                    </div>
+                `;
+            }
+        });
+
+        function calcularCusto() {
+            let codigoPeca = document.getElementById("codigoPeca").value || "Não informado";
+            let descricaoPeca = document.getElementById("descricaoPeca").value || "Não informado";
+            
+            let materiaPrima = parseFloat(document.getElementById("materiaPrima").value) || 0;
+            let maoDeObra = parseFloat(document.getElementById("maoDeObra").value) || 0;
+            let quantidade = parseInt(document.getElementById("quantidade").value) || 1;
+
+            let tempos = document.getElementsByClassName("tempoProcesso");
+            let tempoTotal = 0;
+            for (let tempo of tempos) {
+                tempoTotal += parseFloat(tempo.value) || 0;
+            }
+
+            let custoMaoDeObraPorPeca = (tempoTotal / 60) * maoDeObra;
+            let custoTotalPorPeca = materiaPrima + custoMaoDeObraPorPeca;
+            let custoTotalLote = custoTotalPorPeca * quantidade;
+
+            document.getElementById("resultado").innerHTML = `
+                <strong>Produção:</strong><br>
+                <strong>Código:</strong> ${codigoPeca}<br>
+                <strong>Descrição:</strong> ${descricaoPeca}<br>
+                Tempo total de produção por peça: ${tempoTotal} minutos<br>
+                Custo de mão de obra por peça: R$ ${custoMaoDeObraPorPeca.toFixed(2)}<br>
+                Custo total por peça: R$ ${custoTotalPorPeca.toFixed(2)}<br>
+                Custo total para ${quantidade} peças: R$ ${custoTotalLote.toFixed(2)}
+            `;
+
+            calcularCompra(quantidade);
+        }
+
+        function calcularCompra(quantidade) {
+            let valorPeca = parseFloat(document.getElementById("valorPecaComprada").value) || 0;
+            let ipi = parseFloat(document.getElementById("ipi").value) || 0;
+
+            let custoTotalSemIPI = valorPeca * quantidade;
+            let custoTotalComIPI = custoTotalSemIPI * (1 + ipi / 100);
+
+            document.getElementById("resultadoCompra").innerHTML = `
+                <strong>Compra:</strong><br>
+                Custo total sem IPI: R$ ${custoTotalSemIPI.toFixed(2)}<br>
+                Custo total com IPI: R$ ${custoTotalComIPI.toFixed(2)}
+            `;
+        }
+
+        function gerarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const codigoPeca = document.getElementById('codigoPeca').value || 'Não informado';
+            const descricaoPeca = document.getElementById('descricaoPeca').value || 'Não informado';
+            const date = new Date();
+            const dateStr = `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
+
+            doc.text(`Código da Peça: ${codigoPeca}`, 10, 10);
+            doc.text(`Descrição da Peça: ${descricaoPeca}`, 10, 20);
+            doc.text(`Resultado da Produção:`, 10, 30);
+            doc.text(document.getElementById('resultado').innerText, 10, 40);
+            doc.text(`Resultado da Compra:`, 10, 100);
+            doc.text(document.getElementById('resultadoCompra').innerText, 10, 110);
+            
+            doc.save(`${codigoPeca}_${descricaoPeca}_${dateStr}_calculo_producao.pdf`);
+        }
+
+        function gerarExcel() {
+            const codigoPeca = document.getElementById('codigoPeca').value || 'Não informado';
+            const descricaoPeca = document.getElementById('descricaoPeca').value || 'Não informado';
+            const date = new Date();
+            const dateStr = `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
+
+            const wb = XLSX.utils.book_new();
+            const ws_data = [
+                ['Campo', 'Valor'],
+                ['Código da Peça', codigoPeca],
+                ['Descrição da Peça', descricaoPeca],
+                ['Matéria-prima por peça (R$)', document.getElementById('materiaPrima').value],
+                ['Custo da Mão de Obra por hora (R$)', document.getElementById('maoDeObra').value],
+                ['Quantidade a Produzir', document.getElementById('quantidade').value],
+                ['Resultado da Produção', ''],
+                ['Tempo total de produção por peça', document.getElementById('resultado').innerText.split('\n')[1]],
+                ['Custo de mão de obra por peça', document.getElementById('resultado').innerText.split('\n')[2]],
+                ['Custo total por peça', document.getElementById('resultado').innerText.split('\n')[3]],
+                ['Custo total para o lote', document.getElementById('resultado').innerText.split('\n')[4]],
+                ['Resultado da Compra', ''],
+                ['Custo total sem IPI', document.getElementById('resultadoCompra').innerText.split('\n')[1]],
+                ['Custo total com IPI', document.getElementById('resultadoCompra').innerText.split('\n')[2]]
+            ];
+
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            XLSX.utils.book_append_sheet(wb, ws, 'Cálculo de Produção');
+            
+            XLSX.writeFile(wb, `${codigoPeca}_${descricaoPeca}_${dateStr}_calculo_producao.xlsx`);
+        }
+    </script>
+</body>
+</html>
